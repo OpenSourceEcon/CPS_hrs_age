@@ -25,10 +25,10 @@ import os
 '''
 
 filename = '/Users/rwe/Downloads/jan16pub.dat'
-names = ('HRHHID', 'HWHHWGT', 'PRTAGE', 'PRTFAGE', 'PEHRUSL1',
-         'PEHRUSL2', 'PEHRFTPT', 'PEHRUSLT')
-colspecs = ((0, 15), (46, 56), (121, 123), (123, 124), (217, 219),
-            (219, 221), (221, 223), (223, 226))
+names = ('HWHHWGT', 'PRTAGE', 'PRTFAGE', 'PEHRUSL1', 'PEHRUSL2',
+         'PEHRFTPT')
+colspecs = ((46, 56), (121, 123), (123, 124), (217, 219),
+            (219, 221), (221, 223))
 df = pd.read_fwf(filename, colspecs=colspecs, header=None, names=names,
                  index_col=False)
 
