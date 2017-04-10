@@ -5,7 +5,7 @@ The CPS data files are available on the NBER CPS data page at [http://nber.org/d
 
 When the compressed file is unzipped, the resulting data file has the form "monYYpub.dat". These .dat files are fixed with text files. The dictionary for the beginning column number of each variable for data from January 2015 on is available at [http://nber.org/data/progs/cps-basic/cpsbjan2015.dct](http://nber.org/data/progs/cps-basic/cpsbjan2015.dct). Value labels for some of the varialbes for data from January 2015 on are available at [http://nber.org/data/progs/cps-basic/cpsbjan2015.do](http://nber.org/data/progs/cps-basic/cpsbjan2015.do).
 
-## Rules for calculating
+## Rules for calculating Total Usual Weekly Hours
 The rules for the data that are used to calculate usual weekly hours are the following. The three key variables are:
 
 * `PEHRUSL1`: "How many hours per week do you usually work at your main job?"
