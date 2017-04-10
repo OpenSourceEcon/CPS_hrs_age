@@ -23,7 +23,7 @@ The rules for the data that are used to calculate usual weekly hours are the fol
 
 Note that the CPS basic household survey data include a variable `PEHRUSLT` that is the sum of `PEHRUSL1` and `PEHRUSL2`. However, the variable `PEHRUSLT` excludes information when `PEHRFTPT=1` and either `PEHRUSL1` or `PEHRUSL2` equals -1 or -4. For this reason, we construct our own measure of usual weekly hours by age.
 
-The following table describes our heuristic for computing total usual weekly hours.
+The following table describes our heuristic for computing total usual weekly hours `TotWklyHours`.
 
 | `PEHRUSL1` | `PEHRUSL2` | `PEHRFTPT` | `TotWklyHours` |
 |:----------:|:----------:|:----------:| --------------:|
@@ -43,6 +43,6 @@ The following table describes our heuristic for computing total usual weekly hou
 |    0-99    |      -4    |   2 or 3   | `PEHRUSL1` |
 |    0-99    |      -1    |        1   | max(`PEHRUSL1`, 35.0) |
 |    0-99    |      -1    |   2 or 3   | `PEHRUSL1` |
-|    0-99    |    0-99    |        1   | max(`PEHRUSL1` + `PEHRUSL2`, 35.0 |
+|    0-99    |    0-99    |        1   | max(`PEHRUSL1` + `PEHRUSL2`, 35.0) |
 |    0-99    |    0-99    |   2 or 3   | `PEHRUSL1` + `PEHRUSL2` |
 
