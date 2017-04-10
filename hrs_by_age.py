@@ -165,8 +165,9 @@ def hrs_by_age(age_bins, l_tilde, beg_mmyy, end_mmyy, web=True,
         # Throw and error if the machine is not connected to the
         # internet
         if not_connected:
-            err_msg = ('ERROR: No local directory was specified as the ' +
-                   'source for the data.')
+            err_msg = ('hrs_by_age() ERROR: The local machine is not ' +
+                       'connected to the internet and web=True was ' +
+                       'selected.')
         raise RuntimeError(err_msg)
     elif not web and directory==None:
         err_msg = ('hrs_by_age() ERROR: No local directory was ' +
