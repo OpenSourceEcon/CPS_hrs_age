@@ -9,27 +9,6 @@ This Python module imports the following module(s):
 
 This Python module defines the following function(s):
     ?
-
-Permutations
-usl1    usl2    ftpt
--4  -4  1       35
--4  -4  other       nan
--4  -1  1       35
--4  -1  other       nan
--4  0-99    1       max(usl2, 35)
--4  0-99    other       uls2
--1  -4  1       35
--1  -4  other       nan
--1  -1  1       35
--1  -1  other       nan
--1  0-99    1       max(usl2, 35)
--1  0-99    other       usl2
-0-99    -4  1       max(usl1, 35)
-0-99    -4  other       usl1
-0-99    -1  1       max(usl1, 35)
-0-99    -1  other       usl1
-0-99    0-99    1       max(usl1+usl2, 35)
-0-99    0-99    other       usl1+usl2
 ------------------------------------------------------------------------
 '''
 # Import packages
@@ -151,7 +130,7 @@ plt.close()
 
 
 
-def hrs_by_age(age_bins, l_tilde, beg_mmyy, end_mmyy, web=True,
+def hrs_by_age(age_bins, l_tilde, beg_mmyy, end_mmyy, web=False,
                directory=None, graph=False):
     '''
     --------------------------------------------------------------------
