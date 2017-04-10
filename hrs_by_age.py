@@ -130,7 +130,7 @@ plt.close()
 
 
 
-def hrs_by_age(age_bins, l_tilde, beg_mmyy, end_mmyy, web=False,
+def hrs_by_age(age_bins, l_tilde, beg_mmyy, end_mmyy, web=True,
                directory=None, graph=False):
     '''
     --------------------------------------------------------------------
@@ -161,6 +161,22 @@ def hrs_by_age(age_bins, l_tilde, beg_mmyy, end_mmyy, web=False,
     RETURNS: hrs_age
     --------------------------------------------------------------------
     '''
+    if web:
+        # Throw and error if the machine is not connected to the
+        # internet
+        if not_connected:
+            err_msg = ('ERROR: No local directory was specified as the ' +
+                   'source for the data.')
+        raise RuntimeError(err_msg)
+    elif not web and directory==None:
+        err_msg = ('hrs_by_age() ERROR: No local directory was ' +
+                   'specified as the source for the data.')
+        raise RuntimeError(err_msg)
+    elif not web and directory!=None:
+        # Check to make sure the necessary files are present in the
+        # local directory. If not, throw error. If so, go on with
+        # analysis
+
     S = age_bins.shape[0]
     beg_yr = int(beg_mmyy[-2:])
     beg_mth = beg_mmyy[:-2]
