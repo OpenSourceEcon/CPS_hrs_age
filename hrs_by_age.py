@@ -183,7 +183,7 @@ def hrs_by_age(age_bins, l_tilde, beg_mmyy, end_mmyy, web=True,
     beg_mth = beg_mmyy[:-2]
     end_yr = int(end_mmyy[-2:])
     end_mth = end_mmyy[:-2]
-    file_list = ['mar16pub.dat']
+    file_list = file_names_for_range(beg_yr, beg_mth, end_yr, end_mth)
     for name in file_list:
         filename = os.path.join(directory, name)
 
