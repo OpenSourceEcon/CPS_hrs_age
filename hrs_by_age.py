@@ -16,7 +16,9 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MultipleLocator
+from file_names_for_range import file_names_for_range
 import os
+import requests
 
 '''
 ------------------------------------------------------------------------
@@ -164,11 +166,11 @@ def hrs_by_age(age_bins, l_tilde, beg_mmyy, end_mmyy, web=True,
     if web:
         # Throw and error if the machine is not connected to the
         # internet
-        if not_connected:
+        if not_connected():
             err_msg = ('hrs_by_age() ERROR: The local machine is not ' +
                        'connected to the internet and web=True was ' +
                        'selected.')
-        raise RuntimeError(err_msg)
+            raise RuntimeError(err_msg)
     elif not web and directory==None:
         err_msg = ('hrs_by_age() ERROR: No local directory was ' +
                    'specified as the source for the data.')
@@ -177,6 +179,7 @@ def hrs_by_age(age_bins, l_tilde, beg_mmyy, end_mmyy, web=True,
         # Check to make sure the necessary files are present in the
         # local directory. If not, throw error. If so, go on with
         # analysis
+        print("Write this check.")
 
     S = age_bins.shape[0]
     beg_yr = int(beg_mmyy[-2:])
@@ -184,6 +187,8 @@ def hrs_by_age(age_bins, l_tilde, beg_mmyy, end_mmyy, web=True,
     end_yr = int(end_mmyy[-2:])
     end_mth = end_mmyy[:-2]
     file_list = file_names_for_range(beg_yr, beg_mth, end_yr, end_mth)
+    print(file_list)
+
     for name in file_list:
         filename = os.path.join(directory, name)
 
@@ -226,3 +231,28 @@ def hrs_by_age(age_bins, l_tilde, beg_mmyy, end_mmyy, web=True,
         plt.close()
 
     return hrs_age
+
+def not_connected(url='http://www.google.com/', timeout=5):
+    '''
+    --------------------------------------------------------------------
+    Checks for internet connection of machine.
+    --------------------------------------------------------------------
+    INPUTS:
+    url     = static, 'http://www.google.com/'
+    timeout = static, 5 seconds
+
+    OTHER FUNCTIONS AND FILES CALLED BY THIS FUNCTION: None
+
+    OBJECTS CREATED WITHIN FUNCTION:
+    ? = ?
+
+    FILES CREATED BY THIS FUNCTION: None
+
+    RETURNS: bool
+    --------------------------------------------------------------------
+    '''
+    try:
+        _ = requests.get(url, timeout=timeout)
+        return False
+    except requests.ConnectionError:
+        return True
