@@ -16,9 +16,11 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MultipleLocator
-from file_names_for_range import file_names_for_range
 import os
 import requests
+from io import BytesIO
+from zipfile import ZipFile
+import urllib.request
 
 '''
 ------------------------------------------------------------------------
@@ -143,9 +145,9 @@ def hrs_by_age(age_bins, l_tilde, beg_mmyy, end_mmyy, web=True,
     INPUTS:
     age_bins = (S,) vector, beginning cutoff ages for each age bin
     l_tilde  = scalar > 1, model time endowment for each life period
-    beg_mmyy = length 4 string, numeric two-digit month and numeric
+    beg_mmyy = length 5 string, alpha three-character month and numeric
                last-two-digits of four-digit year for beginning month-
-               year of data period
+               year of data period (i.e. 'jan16')
     end_mmyy = length 4 string, numeric two-digit month and numeric
                last-two-digits of four-digit year for ending month-year
                of data period
@@ -153,7 +155,7 @@ def hrs_by_age(age_bins, l_tilde, beg_mmyy, end_mmyy, web=True,
     dir      = string, directory of local folder where data reside
     graph    = boolean, =True if save plot of hrs_age
 
-    OTHER FUNCTIONS AND FILES CALLED BY THIS FUNCTION: None
+    OTHER FUNCTIONS AND FILES CALLED BY THIS FUNCTION: file_names_for_range
 
     OBJECTS CREATED WITHIN FUNCTION:
     ? = ?
@@ -163,34 +165,39 @@ def hrs_by_age(age_bins, l_tilde, beg_mmyy, end_mmyy, web=True,
     RETURNS: hrs_age
     --------------------------------------------------------------------
     '''
-    if web:
-        # Throw and error if the machine is not connected to the
-        # internet
-        if not_connected():
-            err_msg = ('hrs_by_age() ERROR: The local machine is not ' +
-                       'connected to the internet and web=True was ' +
-                       'selected.')
-            raise RuntimeError(err_msg)
-    elif not web and directory==None:
-        err_msg = ('hrs_by_age() ERROR: No local directory was ' +
-                   'specified as the source for the data.')
-        raise RuntimeError(err_msg)
-    elif not web and directory!=None:
-        # Check to make sure the necessary files are present in the
-        # local directory. If not, throw error. If so, go on with
-        # analysis
-        print("Write this check.")
-
     S = age_bins.shape[0]
     beg_yr = int(beg_mmyy[-2:])
     beg_mth = beg_mmyy[:-2]
     end_yr = int(end_mmyy[-2:])
     end_mth = end_mmyy[:-2]
-    file_list = file_names_for_range(beg_yr, beg_mth, end_yr, end_mth)
-    print(file_list)
 
-    for name in file_list:
-        filename = os.path.join(directory, name)
+    if web:
+        # Throw and error if the machine is not connected to the internet
+        if not_connected():
+            err_msg = ('hrs_by_age() ERROR: The local machine is not ' +
+                       'connected to the internet and web=True was ' +
+                       'selected.')
+            raise RuntimeError(err_msg)
+        file_paths = file_names_for_range(beg_yr, beg_mth, end_yr, end_mth, web)
+        fetch_files_from_web(file_paths)
+
+    elif not web and directory==None:
+        err_msg = ('hrs_by_age() ERROR: No local directory was ' +
+                   'specified as the source for the data.')
+        raise RuntimeError(err_msg)
+
+    elif not web and directory!=None:
+        file_list = file_names_for_range(beg_yr, beg_mth, end_yr, end_mth, web)
+        file_paths = []
+        for name in file_list:
+            file_paths.append(os.path.join(directory, name))
+        # Check to make sure the necessary files are present in the
+        # local directory. If not, throw error. If so, go on with
+        # analysis
+        err_msg = ('hrs_by_age() ERROR: The file %s was not found in the directory %s')
+        for path in file_paths:
+            if not os.path.isfile(path):
+                raise RuntimeError(err_msg % (path, directory))
 
     hrs_age = age_bins
 
@@ -256,3 +263,84 @@ def not_connected(url='http://www.google.com/', timeout=5):
         return False
     except requests.ConnectionError:
         return True
+
+def file_names_for_range(beg_yr, beg_mth, end_yr, end_mth, web):
+    '''
+    --------------------------------------------------------------------
+    Creates list of desired filenames.
+    --------------------------------------------------------------------
+    INPUTS:
+    beg_yr  = int, beginning year of desired files
+    beg_mth = string, 3 character beginning month of desired files
+    end_yr  = int, end year of desired files
+    end_mth = string, 3 character beginning month of desired files
+
+    OTHER FUNCTIONS AND FILES CALLED BY THIS FUNCTION: None
+
+    OBJECTS CREATED WITHIN FUNCTION:
+    ? = ?
+
+    FILES CREATED BY THIS FUNCTION: None
+
+    RETURNS: file_list
+    --------------------------------------------------------------------
+    '''
+    file_list = []
+
+    months = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec']
+
+    if beg_yr < 15 or end_yr > 17:
+        err_msg = ('hrs_by_age() ERROR: Dates out of range.')
+        raise RuntimeError(err_msg)
+    elif end_yr == 17 and months.index(end_mth) > 2:
+        err_msg = ('hrs_by_age() ERROR: Dates out of range.')
+        raise RuntimeError(err_msg)
+
+    if beg_yr == end_yr:
+        included_months = months[months.index(beg_mth):months.index(end_mth)+1]
+        file_list += [month + str(beg_yr) + 'pub' for month in included_months]
+    else:
+        first_year_months = months[months.index(beg_mth):]
+        file_list += [month + str(beg_yr) + 'pub' for month in first_year_months]
+
+        for i in range(1,end_yr-beg_yr):
+            current_yr = beg_yr + i
+            file_list += [month + str(current_yr) + 'pub' for month in months]
+
+        end_year_months = months[:months.index(end_mth)+1]
+        file_list += [month + str(end_yr) + 'pub' for month in end_year_months]
+
+    if web:
+        file_list = ['http://nber.org/cps-basic/' + file_name + '.zip' for file_name in file_list]
+    else:
+        file_list = [file_name + '.dat' for file_name in file_list]
+
+    return file_list
+
+def fetch_files_from_web(file_paths):
+    '''
+    --------------------------------------------------------------------
+    Fetches files from NBER website and saves them to the working
+    directory.
+    --------------------------------------------------------------------
+    INPUTS:
+    file_paths = list, paths of desired zip files
+
+    OTHER FUNCTIONS AND FILES CALLED BY THIS FUNCTION: None
+
+    OBJECTS CREATED WITHIN FUNCTION:
+    ? = ?
+
+    FILES CREATED BY THIS FUNCTION: .pub file for each month of data
+
+    RETURNS: None
+    --------------------------------------------------------------------
+    '''
+    for file_path in file_paths:
+        url = urllib.request.urlopen(file_path)
+
+        with ZipFile(BytesIO(url.read())) as zipped_file:
+            for contained_file in zipped_file.namelist():
+                with open((contained_file), "wb") as output:
+                    for line in zipped_file.open(contained_file).readlines():
+                        output.write(line)
