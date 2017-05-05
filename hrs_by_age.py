@@ -147,8 +147,8 @@ def hrs_by_age(age_bins, l_tilde, beg_mmyy, end_mmyy, web=True,
                        'connected to the internet and web=True was ' +
                        'selected.')
             raise RuntimeError(err_msg)
-        file_paths = file_names_for_range(beg_yr, beg_mth, end_yr, end_mth, web)
-        fetch_files_from_web(file_paths)
+        file_urls = file_names_for_range(beg_yr, beg_mth, end_yr, end_mth, web)
+        fetch_files_from_web(file_urls)
 
     elif not web and directory==None:
         err_msg = ('hrs_by_age() ERROR: No local directory was ' +
@@ -247,6 +247,7 @@ def file_names_for_range(beg_yr, beg_mth, end_yr, end_mth, web):
     beg_mth = string, 3 character beginning month of desired files
     end_yr  = int, end year of desired files
     end_mth = string, 3 character beginning month of desired files
+    web     = bool, whether or not files are being downloaded from the web
 
     OTHER FUNCTIONS AND FILES CALLED BY THIS FUNCTION: None
 
