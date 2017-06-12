@@ -156,17 +156,18 @@ def hrs_by_age(age_bins, l_tilde, beg_mmyy, end_mmyy, web=True,
         raise RuntimeError(err_msg)
 
     elif not web and directory!=None:
+        full_directory = os.path.expanduser(directory)
         file_list = file_names_for_range(beg_yr, beg_mth, end_yr, end_mth, web)
         file_paths = []
         for name in file_list:
-            file_paths.append(os.path.join(directory, name))
+            file_paths.append(os.path.join(full_directory, name))
         # Check to make sure the necessary files are present in the
         # local directory. If not, throw error. If so, go on with
         # analysis
         err_msg = ('hrs_by_age() ERROR: The file %s was not found in the directory %s')
         for path in file_paths:
             if not os.path.isfile(path):
-                raise RuntimeError(err_msg % (path, directory))
+                raise RuntimeError(err_msg % (path, full_directory))
 
     hrs_age = age_bins
 
