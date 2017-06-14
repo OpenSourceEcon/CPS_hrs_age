@@ -21,14 +21,103 @@ import requests
 from io import BytesIO
 from zipfile import ZipFile
 import urllib.request
+from tempfile import NamedTemporaryFile
 
 '''
 ------------------------------------------------------------------------
     Functions
 ------------------------------------------------------------------------
 '''
-def recalculate_avg_hours():
-    filename = '/Users/rwe/Downloads/jan16pub.dat'
+def hrs_by_age(age_bins, l_tilde, beg_mmyy, end_mmyy, web=True,
+               directory=None, graph=False):
+    '''
+    --------------------------------------------------------------------
+    Generates a vector of average hours of work by age for a given
+    vector of age bins and a given time period (number of monthly CPS
+    surveys)
+    --------------------------------------------------------------------
+    INPUTS:
+    age_bins = (S,) vector, beginning cutoff ages for each age bin
+    l_tilde  = scalar > 1, model time endowment for each life period
+    beg_mmyy = length 5 string, alpha three-character month and numeric
+               last-two-digits of four-digit year for beginning month-
+               year of data period (i.e. 'jan16')
+    end_mmyy = length 4 string, numeric two-digit month and numeric
+               last-two-digits of four-digit year for ending month-year
+               of data period
+    web      = boolean, =True if get data from NBER data website
+    dir      = string, directory of local folder where data reside
+    graph    = boolean, =True if save plot of hrs_age
+
+    OTHER FUNCTIONS AND FILES CALLED BY THIS FUNCTION: file_names_for_range
+
+    OBJECTS CREATED WITHIN FUNCTION:
+    ? = ?
+
+    FILES CREATED BY THIS FUNCTION: None
+
+    RETURNS: hrs_age
+    --------------------------------------------------------------------
+    '''
+    # S = age_bins.shape[0]
+    beg_yr = int(beg_mmyy[-2:])
+    beg_mth = beg_mmyy[:-2]
+    end_yr = int(end_mmyy[-2:])
+    end_mth = end_mmyy[:-2]
+    file_paths = []
+
+    if web:
+        # Throw an error if the machine is not connected to the internet
+        if not_connected():
+            err_msg = ('hrs_by_age() ERROR: The local machine is not ' +
+                       'connected to the internet and web=True was ' +
+                       'selected.')
+            raise RuntimeError(err_msg)
+
+        file_urls = file_names_for_range(beg_yr, beg_mth, end_yr, end_mth, web)
+
+        file_paths = fetch_files_from_web(file_urls)
+
+    elif not web and directory==None:
+        # Thow an error if no source of files is given
+        err_msg = ('hrs_by_age() ERROR: No local directory was ' +
+                   'specified as the source for the data.')
+        raise RuntimeError(err_msg)
+
+    elif not web and directory!=None:
+        full_directory = os.path.expanduser(directory)
+        file_list = file_names_for_range(beg_yr, beg_mth, end_yr, end_mth, web)
+
+        for name in file_list:
+            file_paths.append(os.path.join(full_directory, name))
+        # Check to make sure the necessary files are present in the
+        # local directory
+        err_msg = ('hrs_by_age() ERROR: The file %s was not found in the directory %s')
+        for path in file_paths:
+            if not os.path.isfile(path):
+                raise RuntimeError(err_msg % (path, full_directory))
+
+    list_df_hrs_age = []
+    for filename in file_paths:
+        df_hrs_age = recalculate_avg_hours(filename)
+        list_df_hrs_age.append(df_hrs_age)
+
+    combined_df_hrs_age = pd.concat(list_df_hrs_age, axis=1, join='inner')
+
+    if graph:
+        graph_hrs_age(combined_df_hrs_age)
+
+    combined_df_hrs_age.to_csv('month_averages.csv')
+
+    # remove temporary files
+    if web:
+        for path in file_paths:
+            os.unlink(path)
+            assert not os.path.exists(path)
+
+    return combined_df_hrs_age
+
+def recalculate_avg_hours(filename):
     names = ('HWHHWGT', 'PRTAGE', 'PRTFAGE', 'PEHRUSL1', 'PEHRUSL2',
              'PEHRFTPT')
     colspecs = ((46, 56), (121, 123), (123, 124), (217, 219),
@@ -103,115 +192,7 @@ def recalculate_avg_hours():
                                             np.average(x.TotWklyHours,
                                                        weights=x.HWHHWGT))
 
-def hrs_by_age(age_bins, l_tilde, beg_mmyy, end_mmyy, web=True,
-               directory=None, graph=False):
-    '''
-    --------------------------------------------------------------------
-    Generates a vector of average hours of work by age for a given
-    vector of age bins and a given time period (number of monthly CPS
-    surveys)
-    --------------------------------------------------------------------
-    INPUTS:
-    age_bins = (S,) vector, beginning cutoff ages for each age bin
-    l_tilde  = scalar > 1, model time endowment for each life period
-    beg_mmyy = length 5 string, alpha three-character month and numeric
-               last-two-digits of four-digit year for beginning month-
-               year of data period (i.e. 'jan16')
-    end_mmyy = length 4 string, numeric two-digit month and numeric
-               last-two-digits of four-digit year for ending month-year
-               of data period
-    web      = boolean, =True if get data from NBER data website
-    dir      = string, directory of local folder where data reside
-    graph    = boolean, =True if save plot of hrs_age
-
-    OTHER FUNCTIONS AND FILES CALLED BY THIS FUNCTION: file_names_for_range
-
-    OBJECTS CREATED WITHIN FUNCTION:
-    ? = ?
-
-    FILES CREATED BY THIS FUNCTION: None
-
-    RETURNS: hrs_age
-    --------------------------------------------------------------------
-    '''
-    S = age_bins.shape[0]
-    beg_yr = int(beg_mmyy[-2:])
-    beg_mth = beg_mmyy[:-2]
-    end_yr = int(end_mmyy[-2:])
-    end_mth = end_mmyy[:-2]
-
-    if web:
-        # Throw and error if the machine is not connected to the internet
-        if not_connected():
-            err_msg = ('hrs_by_age() ERROR: The local machine is not ' +
-                       'connected to the internet and web=True was ' +
-                       'selected.')
-            raise RuntimeError(err_msg)
-        file_urls = file_names_for_range(beg_yr, beg_mth, end_yr, end_mth, web)
-        fetch_files_from_web(file_urls)
-
-    elif not web and directory==None:
-        err_msg = ('hrs_by_age() ERROR: No local directory was ' +
-                   'specified as the source for the data.')
-        raise RuntimeError(err_msg)
-
-    elif not web and directory!=None:
-        full_directory = os.path.expanduser(directory)
-        file_list = file_names_for_range(beg_yr, beg_mth, end_yr, end_mth, web)
-        file_paths = []
-        for name in file_list:
-            file_paths.append(os.path.join(full_directory, name))
-        # Check to make sure the necessary files are present in the
-        # local directory. If not, throw error. If so, go on with
-        # analysis
-        err_msg = ('hrs_by_age() ERROR: The file %s was not found in the directory %s')
-        for path in file_paths:
-            if not os.path.isfile(path):
-                raise RuntimeError(err_msg % (path, full_directory))
-
-    hrs_age = age_bins
-
-    if graph:
-        '''
-        ----------------------------------------------------------------
-        cur_path    = string, path name of current directory
-        output_fldr = string, folder in current path to save files
-        output_dir  = string, total path of images folder
-        output_path = string, path of file name of figure to be saved
-        age_pers    = (S,) vector, ages from 1 to S
-        ----------------------------------------------------------------
-        '''
-        # Create directory if images directory does not already exist
-        cur_path = os.path.split(os.path.abspath(__file__))[0]
-        output_fldr = 'images'
-        output_dir = os.path.join(cur_path, output_fldr)
-        if not os.access(output_dir, os.F_OK):
-            os.makedirs(output_dir)
-
-        # Plot steady-state consumption and savings distributions
-        # min_age = df_hrs_age.index.min()
-        # max_age = df_hrs_age.index.max()
-        # age_pers = np.arange(min_age, max_age + 1)
-        age_pers = np.arange(1, S + 1)
-        fig, ax = plt.subplots()
-        plt.plot(age_pers, hrs_age, label='Average hours by age')
-        # for the minor ticks, use no labels; default NullFormatter
-        minorLocator = MultipleLocator(1)
-        ax.xaxis.set_minor_locator(minorLocator)
-        plt.grid(b=True, which='major', color='0.65', linestyle='-')
-        plt.title('Average hours by age $s$', fontsize=20)
-        plt.xlabel(r'Age $s$')
-        plt.ylabel(r'Average hours')
-        plt.xlim((0, S + 1))
-        # plt.xlim((min_age - 1, max_age + 1))
-        # plt.ylim((-1.0, 1.15 * (b_ss.max())))
-        plt.legend(loc='upper right')
-        output_path = os.path.join(output_dir, 'hrs_by_age')
-        plt.savefig(output_path)
-        # plt.show()
-        plt.close()
-
-    return hrs_age
+    return df_hrs_age
 
 def not_connected(url='http://www.google.com/', timeout=5):
     '''
@@ -311,11 +292,61 @@ def fetch_files_from_web(file_paths):
     RETURNS: None
     --------------------------------------------------------------------
     '''
+    local_paths = []
+
     for file_path in file_paths:
         url = urllib.request.urlopen(file_path)
 
+        f = NamedTemporaryFile(delete=False)
+        path = f.name
+
         with ZipFile(BytesIO(url.read())) as zipped_file:
             for contained_file in zipped_file.namelist():
-                with open((contained_file), "wb") as output:
-                    for line in zipped_file.open(contained_file).readlines():
-                        output.write(line)
+                for line in zipped_file.open(contained_file).readlines():
+                    f.write(line)
+
+        local_paths.append(path)
+
+        f.close()
+
+    return local_paths
+
+def graph_hrs_age(df_hrs_age):
+    '''
+    ----------------------------------------------------------------
+    cur_path    = string, path name of current directory
+    output_fldr = string, folder in current path to save files
+    output_dir  = string, total path of images folder
+    output_path = string, path of file name of figure to be saved
+    age_pers    = (S,) vector, ages from 1 to S
+    ----------------------------------------------------------------
+    '''
+    # Create directory if images directory does not already exist
+    cur_path = os.path.split(os.path.abspath(__file__))[0]
+    output_fldr = 'images'
+    output_dir = os.path.join(cur_path, output_fldr)
+    if not os.access(output_dir, os.F_OK):
+        os.makedirs(output_dir)
+
+    # Plot steady-state consumption and savings distributions
+    min_age = df_hrs_age.index.min()
+    max_age = df_hrs_age.index.max()
+    age_pers = np.arange(min_age, max_age + 1)
+    # age_pers = np.arange(1, S + 1)
+    fig, ax = plt.subplots()
+    plt.plot(age_pers, df_hrs_age, label='Average hours by age')
+    # for the minor ticks, use no labels; default NullFormatter
+    minorLocator = MultipleLocator(1)
+    ax.xaxis.set_minor_locator(minorLocator)
+    plt.grid(b=True, which='major', color='0.65', linestyle='-')
+    plt.title('Average hours by age $s$', fontsize=20)
+    plt.xlabel(r'Age $s$')
+    plt.ylabel(r'Average hours')
+    # plt.xlim((0, S + 1))
+    plt.xlim((min_age - 1, max_age + 1))
+    # plt.ylim((-1.0, 1.15 * (b_ss.max())))
+    plt.legend(loc='upper right')
+    output_path = os.path.join(output_dir, 'hrs_by_age')
+    plt.savefig(output_path)
+    # plt.show()
+    plt.close()
