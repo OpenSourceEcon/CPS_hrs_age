@@ -28,8 +28,8 @@ from tempfile import NamedTemporaryFile
     Functions
 ------------------------------------------------------------------------
 '''
-def hrs_by_age(age_bins, l_tilde, beg_mmyy, end_mmyy, web=True,
-               directory=None, graph=False):
+def hrs_by_age(beg_mmyy, end_mmyy, web=True, directory=None, graph=False,
+                age_bins = None, l_tilde = 1):
     '''
     --------------------------------------------------------------------
     Generates a vector of average hours of work by age for a given
@@ -50,9 +50,6 @@ def hrs_by_age(age_bins, l_tilde, beg_mmyy, end_mmyy, web=True,
     graph    = boolean, =True if save plot of hrs_age
 
     OTHER FUNCTIONS AND FILES CALLED BY THIS FUNCTION: file_names_for_range
-
-    OBJECTS CREATED WITHIN FUNCTION:
-    ? = ?
 
     FILES CREATED BY THIS FUNCTION: None
 
@@ -97,17 +94,13 @@ def hrs_by_age(age_bins, l_tilde, beg_mmyy, end_mmyy, web=True,
             if not os.path.isfile(path):
                 raise RuntimeError(err_msg % (path, full_directory))
 
-    list_df_hrs_age = []
-    for filename in file_paths:
-        df_hrs_age = recalculate_avg_hours(filename)
-        list_df_hrs_age.append(df_hrs_age)
-
-    combined_df_hrs_age = pd.concat(list_df_hrs_age, axis=1, join='inner')
+    df_hrs_age = recalculate_avg_hours(file_paths)
 
     if graph:
-        graph_hrs_age(combined_df_hrs_age)
+        create_graph(df_hrs_age)
 
-    combined_df_hrs_age.to_csv('month_averages.csv')
+    # write the vector out to a csv
+    df_hrs_age.to_csv('hrs_age.csv')
 
     # remove temporary files
     if web:
@@ -115,15 +108,22 @@ def hrs_by_age(age_bins, l_tilde, beg_mmyy, end_mmyy, web=True,
             os.unlink(path)
             assert not os.path.exists(path)
 
-    return combined_df_hrs_age
+    return df_hrs_age
 
-def recalculate_avg_hours(filename):
+def recalculate_avg_hours(file_paths):
     names = ('HWHHWGT', 'PRTAGE', 'PRTFAGE', 'PEHRUSL1', 'PEHRUSL2',
              'PEHRFTPT')
     colspecs = ((46, 56), (121, 123), (123, 124), (217, 219),
                 (219, 221), (221, 223))
-    df = pd.read_fwf(filename, colspecs=colspecs, header=None, names=names,
-                     index_col=False)
+
+    list_months_df = []
+    for filename in file_paths:
+        month_df = pd.read_fwf(filename, colspecs=colspecs, header=None, names=names,
+                         index_col=False)
+        list_months_df.append(month_df)
+
+    # concatenate all dataframes
+    df = pd.concat(list_months_df)
 
     # Drop all observations that:
     #   1) have no hours in either response (PEHRUSL1=-1) and (PEHRUSL2=-1)
@@ -203,13 +203,6 @@ def not_connected(url='http://www.google.com/', timeout=5):
     url     = static, 'http://www.google.com/'
     timeout = static, 5 seconds
 
-    OTHER FUNCTIONS AND FILES CALLED BY THIS FUNCTION: None
-
-    OBJECTS CREATED WITHIN FUNCTION:
-    ? = ?
-
-    FILES CREATED BY THIS FUNCTION: None
-
     RETURNS: bool
     --------------------------------------------------------------------
     '''
@@ -230,13 +223,6 @@ def file_names_for_range(beg_yr, beg_mth, end_yr, end_mth, web):
     end_yr  = int, end year of desired files
     end_mth = string, 3 character beginning month of desired files
     web     = bool, whether or not files are being downloaded from the web
-
-    OTHER FUNCTIONS AND FILES CALLED BY THIS FUNCTION: None
-
-    OBJECTS CREATED WITHIN FUNCTION:
-    ? = ?
-
-    FILES CREATED BY THIS FUNCTION: None
 
     RETURNS: file_list
     --------------------------------------------------------------------
@@ -276,30 +262,26 @@ def file_names_for_range(beg_yr, beg_mth, end_yr, end_mth, web):
 def fetch_files_from_web(file_paths):
     '''
     --------------------------------------------------------------------
-    Fetches files from NBER website and saves them to the working
-    directory.
+    Fetches files from NBER website and saves them as temporary files.
     --------------------------------------------------------------------
     INPUTS:
     file_paths = list, paths of desired zip files
 
-    OTHER FUNCTIONS AND FILES CALLED BY THIS FUNCTION: None
-
-    OBJECTS CREATED WITHIN FUNCTION:
-    ? = ?
-
     FILES CREATED BY THIS FUNCTION: .pub file for each month of data
 
-    RETURNS: None
+    RETURNS: local_paths = list, paths of temporary files
     --------------------------------------------------------------------
     '''
     local_paths = []
 
     for file_path in file_paths:
+        # url = requests.get(file_path) (if using reuests package)
         url = urllib.request.urlopen(file_path)
 
         f = NamedTemporaryFile(delete=False)
         path = f.name
 
+        # url.content (if using requests package)
         with ZipFile(BytesIO(url.read())) as zipped_file:
             for contained_file in zipped_file.namelist():
                 for line in zipped_file.open(contained_file).readlines():
