@@ -22,6 +22,7 @@ from io import BytesIO
 from zipfile import ZipFile
 import urllib.request
 from tempfile import NamedTemporaryFile
+import pickle
 
 '''
 ------------------------------------------------------------------------
@@ -94,12 +95,15 @@ def hrs_by_age(beg_mmyy, end_mmyy, web=True, directory=None, graph=False,
             if not os.path.isfile(path):
                 raise RuntimeError(err_msg % (path, full_directory))
 
-    df_hrs_age = recalculate_avg_hours(file_paths)
+    df_hrs_age = recalculate_avg_hours(file_paths, age_bins)
+
+    if l_tilde:
+        df_hrs_age = df_hrs_age/l_tilde
 
     if graph:
         create_graph(df_hrs_age)
 
-    # write the vector out to a csv
+    # write the vector and parameters out to a pickle
     df_hrs_age.to_csv('hrs_age.csv')
 
     # remove temporary files
@@ -110,7 +114,7 @@ def hrs_by_age(beg_mmyy, end_mmyy, web=True, directory=None, graph=False,
 
     return df_hrs_age
 
-def recalculate_avg_hours(file_paths):
+def recalculate_avg_hours(file_paths, age_bins):
     names = ('HWHHWGT', 'PRTAGE', 'PRTFAGE', 'PEHRUSL1', 'PEHRUSL2',
              'PEHRFTPT')
     colspecs = ((46, 56), (121, 123), (123, 124), (217, 219),
@@ -188,7 +192,16 @@ def recalculate_avg_hours(file_paths):
     # Add TotWklyHours to DataFrame
     df['TotWklyHours'] = TotWklyHours
 
-    df_hrs_age = df.groupby('PRTAGE').apply(lambda x:
+    if age_bins is not None:
+        age_bins = np.append(age_bins, 80)
+        age_bins = list(age_bins)
+        df['age_bins'] = pd.cut(df['PRTAGE'], age_bins)
+        df_hrs_age = df.groupby('age_bins').apply(lambda x:
+                                            np.average(x.TotWklyHours,
+                                                       weights=x.HWHHWGT))
+
+    else:
+        df_hrs_age = df.groupby('PRTAGE').apply(lambda x:
                                             np.average(x.TotWklyHours,
                                                        weights=x.HWHHWGT))
 
@@ -293,7 +306,7 @@ def fetch_files_from_web(file_paths):
 
     return local_paths
 
-def graph_hrs_age(df_hrs_age):
+def create_graph(df_hrs_age):
     '''
     ----------------------------------------------------------------
     cur_path    = string, path name of current directory
