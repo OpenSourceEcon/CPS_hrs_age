@@ -3,19 +3,13 @@
 This module generates a vector of average hours of work by age for a
 given vector of age bins and a given time period (number of monthly CPS
 surveys).
-
-This Python module imports the following module(s):
-    ?
-
-This Python module defines the following function(s):
-    ?
 ------------------------------------------------------------------------
 '''
 # Import packages
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
-from matplotlib.ticker import MultipleLocator
+# import matplotlib.pyplot as plt
+# from matplotlib.ticker import MultipleLocator
 import os
 import requests
 from io import BytesIO
@@ -23,6 +17,7 @@ from zipfile import ZipFile
 import urllib.request
 from tempfile import NamedTemporaryFile
 import pickle
+from bokeh.plotting import figure, output_file, show
 
 '''
 ------------------------------------------------------------------------
@@ -97,14 +92,24 @@ def hrs_by_age(beg_mmyy, end_mmyy, web=True, directory=None, graph=False,
 
     df_hrs_age = recalculate_avg_hours(file_paths, age_bins)
 
-    if l_tilde:
-        df_hrs_age = df_hrs_age/l_tilde
+    df_hrs_age = df_hrs_age/l_tilde
 
     if graph:
-        create_graph(df_hrs_age)
+        create_graph(df_hrs_age, age_bins)
 
-    # write the vector and parameters out to a pickle
-    df_hrs_age.to_csv('hrs_age.csv')
+    # Create OUTPUT/folder directory if does not already exist
+    cur_path = os.path.split(os.path.abspath(__file__))[0]
+    output_fldr = 'OUTPUT/'
+    output_dir = os.path.join(cur_path, output_fldr)
+    if not os.access(output_dir, os.F_OK):
+        os.makedirs(output_dir)
+    outputfile = os.path.join(output_dir, 'hrs_by_age.pkl')
+    # Create output object as vector and parameters used to create it
+    output_object = {'vector':df_hrs_age, 'beginning_month':beg_mmyy, 'ending_month':\
+    end_mmyy, 'web':web, 'directory':directory, 'graph':graph, 'age_bins':age_bins, \
+    'l_tilde':l_tilde}
+    # Save output as pickle
+    pickle.dump(output_object, open(outputfile, 'wb'))
 
     # remove temporary files
     if web:
@@ -112,7 +117,7 @@ def hrs_by_age(beg_mmyy, end_mmyy, web=True, directory=None, graph=False,
             os.unlink(path)
             assert not os.path.exists(path)
 
-    return df_hrs_age
+    return None
 
 def recalculate_avg_hours(file_paths, age_bins):
     names = ('HWHHWGT', 'PRTAGE', 'PRTFAGE', 'PEHRUSL1', 'PEHRUSL2',
@@ -306,7 +311,7 @@ def fetch_files_from_web(file_paths):
 
     return local_paths
 
-def create_graph(df_hrs_age):
+def create_graph(df_hrs_age, age_bins):
     '''
     ----------------------------------------------------------------
     cur_path    = string, path name of current directory
@@ -318,30 +323,52 @@ def create_graph(df_hrs_age):
     '''
     # Create directory if images directory does not already exist
     cur_path = os.path.split(os.path.abspath(__file__))[0]
-    output_fldr = 'images'
+    output_fldr = 'OUTPUT/images'
     output_dir = os.path.join(cur_path, output_fldr)
     if not os.access(output_dir, os.F_OK):
         os.makedirs(output_dir)
 
     # Plot steady-state consumption and savings distributions
-    min_age = df_hrs_age.index.min()
-    max_age = df_hrs_age.index.max()
-    age_pers = np.arange(min_age, max_age + 1)
-    # age_pers = np.arange(1, S + 1)
-    fig, ax = plt.subplots()
-    plt.plot(age_pers, df_hrs_age, label='Average hours by age')
-    # for the minor ticks, use no labels; default NullFormatter
-    minorLocator = MultipleLocator(1)
-    ax.xaxis.set_minor_locator(minorLocator)
-    plt.grid(b=True, which='major', color='0.65', linestyle='-')
-    plt.title('Average hours by age $s$', fontsize=20)
-    plt.xlabel(r'Age $s$')
-    plt.ylabel(r'Average hours')
-    # plt.xlim((0, S + 1))
-    plt.xlim((min_age - 1, max_age + 1))
-    # plt.ylim((-1.0, 1.15 * (b_ss.max())))
-    plt.legend(loc='upper right')
-    output_path = os.path.join(output_dir, 'hrs_by_age')
-    plt.savefig(output_path)
-    # plt.show()
-    plt.close()
+    # min_age = df_hrs_age.index.min()
+    # max_age = df_hrs_age.index.max()
+    # age_pers = np.arange(min_age, max_age + 1)
+    # # age_pers = np.arange(1, S + 1)
+    # fig, ax = plt.subplots()
+    # plt.plot(age_pers, df_hrs_age, label='Average hours by age')
+    # # for the minor ticks, use no labels; default NullFormatter
+    # minorLocator = MultipleLocator(1)
+    # ax.xaxis.set_minor_locator(minorLocator)
+    # plt.grid(b=True, which='major', color='0.65', linestyle='-')
+    # plt.title('Average hours by age $s$', fontsize=20)
+    # plt.xlabel(r'Age $s$')
+    # plt.ylabel(r'Average hours')
+    # # plt.xlim((0, S + 1))
+    # plt.xlim((min_age - 1, max_age + 1))
+    # # plt.ylim((-1.0, 1.15 * (b_ss.max())))
+    # plt.legend(loc='upper right')
+    # output_path = os.path.join(output_dir, 'hrs_by_age')
+    # plt.savefig(output_path)
+    # plt.close()
+
+
+    output_path = os.path.join(output_dir, 'hrs_by_age.html')
+    output_file(output_path)
+
+    if age_bins is None:
+        min_age = df_hrs_age.index.min()
+        max_age = df_hrs_age.index.max()
+        age_pers = np.arange(min_age, max_age + 1)
+        p = figure(plot_width=400, plot_height=400, title='Average hours by age')
+    else:
+        age_bins = np.append(age_bins, 80)
+        age_pers = []
+        for i in range(len(age_bins)-1):
+            age_range = '%d - %d' % (age_bins[i], age_bins[i+1]-1)
+            age_pers.append(age_range)
+
+        p = figure(plot_width=400, plot_height=400, x_range=age_pers, title='Average hours by age')
+
+    p.xaxis.axis_label = 'Age'
+    p.yaxis.axis_label = 'Average hours'
+    p.line(age_pers, df_hrs_age, line_width=2)
+    show(p)
