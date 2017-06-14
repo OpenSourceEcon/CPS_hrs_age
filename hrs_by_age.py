@@ -8,8 +8,6 @@ surveys).
 # Import packages
 import numpy as np
 import pandas as pd
-# import matplotlib.pyplot as plt
-# from matplotlib.ticker import MultipleLocator
 import os
 import requests
 from io import BytesIO
@@ -33,8 +31,6 @@ def hrs_by_age(beg_mmyy, end_mmyy, web=True, directory=None, graph=False,
     surveys)
     --------------------------------------------------------------------
     INPUTS:
-    age_bins = (S,) vector, beginning cutoff ages for each age bin
-    l_tilde  = scalar > 1, model time endowment for each life period
     beg_mmyy = length 5 string, alpha three-character month and numeric
                last-two-digits of four-digit year for beginning month-
                year of data period (i.e. 'jan16')
@@ -44,15 +40,10 @@ def hrs_by_age(beg_mmyy, end_mmyy, web=True, directory=None, graph=False,
     web      = boolean, =True if get data from NBER data website
     dir      = string, directory of local folder where data reside
     graph    = boolean, =True if save plot of hrs_age
-
-    OTHER FUNCTIONS AND FILES CALLED BY THIS FUNCTION: file_names_for_range
-
-    FILES CREATED BY THIS FUNCTION: None
-
-    RETURNS: hrs_age
+    age_bins = (S,) vector, beginning cutoff ages for each age bin
+    l_tilde  = scalar > 1, model time endowment for each life period
     --------------------------------------------------------------------
     '''
-    # S = age_bins.shape[0]
     beg_yr = int(beg_mmyy[-2:])
     beg_mth = beg_mmyy[:-2]
     end_yr = int(end_mmyy[-2:])
@@ -92,6 +83,7 @@ def hrs_by_age(beg_mmyy, end_mmyy, web=True, directory=None, graph=False,
 
     df_hrs_age = recalculate_avg_hours(file_paths, age_bins)
 
+    # normalize working hours
     df_hrs_age = df_hrs_age/l_tilde
 
     if graph:
@@ -120,6 +112,20 @@ def hrs_by_age(beg_mmyy, end_mmyy, web=True, directory=None, graph=False,
     return None
 
 def recalculate_avg_hours(file_paths, age_bins):
+    '''
+    --------------------------------------------------------------------
+    Creates a dataframe of all of the requested months, recalculates the
+    working hours variable and calculates a weighted average number of
+    hours worked for each age bin across the entire time period.
+    --------------------------------------------------------------------
+    INPUTS:
+    age_bins   = (S,) vector, beginning cutoff ages for each age bin
+    file_paths = list, location of file for each requested month
+
+    RETURNS: hrs_by_age, dataframe containing weighted averages of hours
+    worked per week according to age
+    --------------------------------------------------------------------
+    '''
     names = ('HWHHWGT', 'PRTAGE', 'PRTFAGE', 'PEHRUSL1', 'PEHRUSL2',
              'PEHRFTPT')
     colspecs = ((46, 56), (121, 123), (123, 124), (217, 219),
@@ -197,6 +203,7 @@ def recalculate_avg_hours(file_paths, age_bins):
     # Add TotWklyHours to DataFrame
     df['TotWklyHours'] = TotWklyHours
 
+    # mark and group according to bin
     if age_bins is not None:
         age_bins = np.append(age_bins, 80)
         age_bins = list(age_bins)
@@ -204,7 +211,7 @@ def recalculate_avg_hours(file_paths, age_bins):
         df_hrs_age = df.groupby('age_bins').apply(lambda x:
                                             np.average(x.TotWklyHours,
                                                        weights=x.HWHHWGT))
-
+    # group according to age
     else:
         df_hrs_age = df.groupby('PRTAGE').apply(lambda x:
                                             np.average(x.TotWklyHours,
@@ -314,6 +321,8 @@ def fetch_files_from_web(file_paths):
 def create_graph(df_hrs_age, age_bins):
     '''
     ----------------------------------------------------------------
+    Creates Bokeh graph of average hours worked per week by age
+    ----------------------------------------------------------------
     cur_path    = string, path name of current directory
     output_fldr = string, folder in current path to save files
     output_dir  = string, total path of images folder
@@ -327,30 +336,6 @@ def create_graph(df_hrs_age, age_bins):
     output_dir = os.path.join(cur_path, output_fldr)
     if not os.access(output_dir, os.F_OK):
         os.makedirs(output_dir)
-
-    # Plot steady-state consumption and savings distributions
-    # min_age = df_hrs_age.index.min()
-    # max_age = df_hrs_age.index.max()
-    # age_pers = np.arange(min_age, max_age + 1)
-    # # age_pers = np.arange(1, S + 1)
-    # fig, ax = plt.subplots()
-    # plt.plot(age_pers, df_hrs_age, label='Average hours by age')
-    # # for the minor ticks, use no labels; default NullFormatter
-    # minorLocator = MultipleLocator(1)
-    # ax.xaxis.set_minor_locator(minorLocator)
-    # plt.grid(b=True, which='major', color='0.65', linestyle='-')
-    # plt.title('Average hours by age $s$', fontsize=20)
-    # plt.xlabel(r'Age $s$')
-    # plt.ylabel(r'Average hours')
-    # # plt.xlim((0, S + 1))
-    # plt.xlim((min_age - 1, max_age + 1))
-    # # plt.ylim((-1.0, 1.15 * (b_ss.max())))
-    # plt.legend(loc='upper right')
-    # output_path = os.path.join(output_dir, 'hrs_by_age')
-    # plt.savefig(output_path)
-    # plt.close()
-
-
     output_path = os.path.join(output_dir, 'hrs_by_age.html')
     output_file(output_path)
 
@@ -365,7 +350,6 @@ def create_graph(df_hrs_age, age_bins):
         for i in range(len(age_bins)-1):
             age_range = '%d - %d' % (age_bins[i], age_bins[i+1]-1)
             age_pers.append(age_range)
-
         p = figure(plot_width=400, plot_height=400, x_range=age_pers, title='Average hours by age')
 
     p.xaxis.axis_label = 'Age'
