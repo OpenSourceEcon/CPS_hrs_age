@@ -15,6 +15,8 @@ from zipfile import ZipFile
 import urllib.request
 from tempfile import NamedTemporaryFile
 import pickle
+import matplotlib.pyplot as plt
+from matplotlib.ticker import MultipleLocator
 from bokeh.plotting import figure, output_file, show
 
 '''
@@ -22,8 +24,8 @@ from bokeh.plotting import figure, output_file, show
     Functions
 ------------------------------------------------------------------------
 '''
-def hrs_by_age(beg_mmyy, end_mmyy, web=True, directory=None, graph=False,
-                age_bins = None, l_tilde = 1):
+def hrs_by_age(beg_mmyy, end_mmyy, web=False, directory=None, graph=False,
+                graph_type='bokeh', age_bins = None, l_tilde = 1):
     '''
     --------------------------------------------------------------------
     Generates a vector of average hours of work by age for a given
@@ -31,17 +33,18 @@ def hrs_by_age(beg_mmyy, end_mmyy, web=True, directory=None, graph=False,
     surveys)
     --------------------------------------------------------------------
     INPUTS:
-    beg_mmyy = length 5 string, alpha three-character month and numeric
-               last-two-digits of four-digit year for beginning month-
-               year of data period (i.e. 'jan16')
-    end_mmyy = length 4 string, numeric two-digit month and numeric
-               last-two-digits of four-digit year for ending month-year
-               of data period
-    web      = boolean, =True if get data from NBER data website
-    dir      = string, directory of local folder where data reside
-    graph    = boolean, =True if save plot of hrs_age
-    age_bins = (S,) vector, beginning cutoff ages for each age bin
-    l_tilde  = scalar > 1, model time endowment for each life period
+    beg_mmyy   = length 5 string, alpha three-character month and numeric
+                 last-two-digits of four-digit year for beginning month-
+                 year of data period (i.e. 'jan16')
+    end_mmyy   = length 4 string, numeric two-digit month and numeric
+                 last-two-digits of four-digit year for ending month-year
+                 of data period
+    web        = boolean, =True if get data from NBER data website
+    dir        = string, directory of local folder where data reside
+    graph      = boolean, =True if save plot of hrs_age
+    graph_type = string, indicates which type of graph to include
+    age_bins   = (S,) vector, beginning cutoff ages for each age bin
+    l_tilde    = scalar > 1, model time endowment for each life period
     --------------------------------------------------------------------
     '''
     beg_yr = int(beg_mmyy[-2:])
@@ -87,7 +90,7 @@ def hrs_by_age(beg_mmyy, end_mmyy, web=True, directory=None, graph=False,
     df_hrs_age = df_hrs_age/l_tilde
 
     if graph:
-        create_graph(df_hrs_age, age_bins)
+        create_graph(df_hrs_age, age_bins, graph_type)
 
     # Create OUTPUT/folder directory if does not already exist
     cur_path = os.path.split(os.path.abspath(__file__))[0]
@@ -318,11 +321,14 @@ def fetch_files_from_web(file_paths):
 
     return local_paths
 
-def create_graph(df_hrs_age, age_bins):
+def create_graph(df_hrs_age, age_bins, graph_type):
     '''
     ----------------------------------------------------------------
     Creates Bokeh graph of average hours worked per week by age
     ----------------------------------------------------------------
+    df_hrs_age  = dataframe including weighted averages for age bins
+    age_bins    = numpy array, lower bounds for age cutoffs
+    graph_type  = string, indicates which type of plot to include
     cur_path    = string, path name of current directory
     output_fldr = string, folder in current path to save files
     output_dir  = string, total path of images folder
@@ -336,23 +342,58 @@ def create_graph(df_hrs_age, age_bins):
     output_dir = os.path.join(cur_path, output_fldr)
     if not os.access(output_dir, os.F_OK):
         os.makedirs(output_dir)
-    output_path = os.path.join(output_dir, 'hrs_by_age.html')
-    output_file(output_path)
 
-    if age_bins is None:
-        min_age = df_hrs_age.index.min()
-        max_age = df_hrs_age.index.max()
-        age_pers = np.arange(min_age, max_age + 1)
-        p = figure(plot_width=400, plot_height=400, title='Average hours by age')
-    else:
-        age_bins = np.append(age_bins, 80)
-        age_pers = []
-        for i in range(len(age_bins)-1):
-            age_range = '%d - %d' % (age_bins[i], age_bins[i+1]-1)
-            age_pers.append(age_range)
-        p = figure(plot_width=400, plot_height=400, x_range=age_pers, title='Average hours by age')
+    # Graphing with matplotlib
+    if graph_type == 'plt':
+        if age_bins is None:
+            min_age = df_hrs_age.index.min()
+            max_age = df_hrs_age.index.max()
+            age_pers = np.arange(min_age, max_age + 1)
+            plt.xlim((min_age - 1, max_age + 1))
+            fig, ax = plt.subplots()
+            plt.plot(age_pers, df_hrs_age, label='Average hours by age')
+        else:
+            age_bins = np.append(age_bins, 80)
+            age_pers = []
+            num_age_bins = []
+            for i in range(len(age_bins)-1):
+                age_range = '%d - %d' % (age_bins[i], age_bins[i+1]-1)
+                age_pers.append(age_range)
+                num_age_bins.append(i)
+            fig, ax = plt.subplots()
+            plt.plot(num_age_bins, df_hrs_age, label='Average hours by age')
+            plt.xticks(num_age_bins, age_pers)
 
-    p.xaxis.axis_label = 'Age'
-    p.yaxis.axis_label = 'Average hours'
-    p.line(age_pers, df_hrs_age, line_width=2)
-    show(p)
+        minorLocator = MultipleLocator(1)
+        ax.xaxis.set_minor_locator(minorLocator)
+        plt.grid(b=True, which='major', color='0.65', linestyle='-')
+        plt.title('Average hours by age', fontsize=20)
+        plt.xlabel(r'Age')
+        plt.ylabel(r'Average hours')
+        plt.legend(loc='upper right')
+
+        output_path = os.path.join(output_dir, 'hrs_by_age.png')
+        plt.savefig(output_path)
+        plt.close()
+
+    # Graphing with Bokeh
+    if graph_type =='bokeh':
+        output_path = os.path.join(output_dir, 'hrs_by_age.html')
+        output_file(output_path)
+        if age_bins is None:
+            min_age = df_hrs_age.index.min()
+            max_age = df_hrs_age.index.max()
+            age_pers = np.arange(min_age, max_age + 1)
+            p = figure(plot_width=400, plot_height=400, title='Average hours by age')
+        else:
+            age_bins = np.append(age_bins, 80)
+            age_pers = []
+            for i in range(len(age_bins)-1):
+                age_range = '%d - %d' % (age_bins[i], age_bins[i+1]-1)
+                age_pers.append(age_range)
+            p = figure(plot_width=400, plot_height=400, x_range=age_pers, title='Average hours by age')
+
+        p.xaxis.axis_label = 'Age'
+        p.yaxis.axis_label = 'Average hours'
+        p.line(age_pers, df_hrs_age, line_width=2)
+        show(p)
