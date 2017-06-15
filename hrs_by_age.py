@@ -19,11 +19,6 @@ import matplotlib.pyplot as plt
 from matplotlib.ticker import MultipleLocator
 from bokeh.plotting import figure, output_file, show
 
-'''
-------------------------------------------------------------------------
-    Functions
-------------------------------------------------------------------------
-'''
 def hrs_by_age(beg_mmyy, end_mmyy, web=False, directory=None, graph=False,
                 graph_type='bokeh', age_bins = None, l_tilde = 1):
     '''
@@ -36,15 +31,45 @@ def hrs_by_age(beg_mmyy, end_mmyy, web=False, directory=None, graph=False,
     beg_mmyy   = length 5 string, alpha three-character month and numeric
                  last-two-digits of four-digit year for beginning month-
                  year of data period (i.e. 'jan16')
-    end_mmyy   = length 4 string, numeric two-digit month and numeric
+    end_mmyy   = length 5 string, alpha three-character month and numeric
                  last-two-digits of four-digit year for ending month-year
                  of data period
-    web        = boolean, =True if get data from NBER data website
+    web        = boolean, True if get data from NBER data website
     dir        = string, directory of local folder where data reside
-    graph      = boolean, =True if save plot of hrs_age
+    graph      = boolean, True if save plot of hrs_age
     graph_type = string, indicates which type of graph to include
     age_bins   = (S,) vector, beginning cutoff ages for each age bin
     l_tilde    = scalar > 1, model time endowment for each life period
+
+    OTHER FUNCTIONS AND FILES CALLED BY THIS FUNCTION:
+        not_connected()
+        file_names_for_range()
+        fetch_files_from_web()
+        recalculate_avg_hours()
+        create_graph()
+
+    OBJECTS CREATED WITHIN FUNCTION:
+    beg_yr         = two-digit int, beginnning year of data
+    beg_mth        = three-character string, beginning month of data
+    end_yr         = two-digit int, ending year of data
+    end_mth        = three-character string, ending month of data
+    file_paths     = list, local path to each data file
+    err_msg        = string, gives user error
+    file_urls      = list, url to each data file
+    full_directory = string, resolved path to directory containing data file
+    file_list      = list, formatted name of each data file
+    df_hrs_age     = dataframe, weighted avg of weekly hours per age bin
+    cur_path       = string, path of current working directory
+    output_fldr    = string, name of output folder
+    output_dir     = string, path to output folder
+    output_file    = string, name of output file
+    output_object  = dictionary, df_hrs_age and parameters used
+    hrs_age_vec    = numpy array, (S,) length of weighted avg of weekly hours
+
+    FILES CREATED BY THIS FUNCTION:
+        hrs_by_age.pkl
+
+    RETURNS: hrs_age_vec
     --------------------------------------------------------------------
     '''
     beg_yr = int(beg_mmyy[-2:])
@@ -98,13 +123,13 @@ def hrs_by_age(beg_mmyy, end_mmyy, web=False, directory=None, graph=False,
     output_dir = os.path.join(cur_path, output_fldr)
     if not os.access(output_dir, os.F_OK):
         os.makedirs(output_dir)
-    outputfile = os.path.join(output_dir, 'hrs_by_age.pkl')
+    output_file = os.path.join(output_dir, 'hrs_by_age.pkl')
     # Create output object as vector and parameters used to create it
     output_object = {'vector':df_hrs_age, 'beginning_month':beg_mmyy, 'ending_month':\
     end_mmyy, 'web':web, 'directory':directory, 'graph':graph, 'age_bins':age_bins, \
     'l_tilde':l_tilde}
     # Save output as pickle
-    pickle.dump(output_object, open(outputfile, 'wb'))
+    pickle.dump(output_object, open(output_file, 'wb'))
 
     # remove temporary files
     if web:
@@ -128,8 +153,20 @@ def recalculate_avg_hours(file_paths, age_bins):
     age_bins   = (S,) vector, beginning cutoff ages for each age bin
     file_paths = list, location of file for each requested month
 
-    RETURNS: hrs_by_age, dataframe containing weighted averages of hours
-    worked per week according to age
+    OTHER FUNCTIONS AND FILES CALLED BY THIS FUNCTION: None
+
+    OBJECTS CREATED WITHIN FUNCTION:
+    names          = length 6 tuple, names for each column in data file
+    colspecs       = length 6 tuple, tuples for indexes for each column
+    list_months_df = list, dataframes for each month of data
+    month_df       = dataframe, data read from data file
+    df             = dataframe, concatenated dataframe of data from all months
+    TotWklyHours   = series, contains weighted averages per age bin
+    df_hrs_age     = dataframe, weighted averages of weekly hours per age bin
+
+    FILES CREATED BY THIS FUNCTION: None
+
+    RETURNS: df_hrs_age
     --------------------------------------------------------------------
     '''
     names = ('HWHHWGT', 'PRTAGE', 'PRTFAGE', 'PEHRUSL1', 'PEHRUSL2',
@@ -232,9 +269,17 @@ def not_connected(url='http://www.google.com/', timeout=5):
     --------------------------------------------------------------------
     INPUTS:
     url     = static, 'http://www.google.com/'
-    timeout = static, 5 seconds
+    timeout = static, timeout limit of 5 seconds
 
-    RETURNS: bool
+    OTHER FUNCTIONS AND FILES CALLED BY THIS FUNCTION:
+        requests.get()
+        requests.ConnectionError()
+
+    OBJECTS CREATED WITHIN FUNCTION: None
+
+    FILES CREATED BY THIS FUNCTION: None
+
+    RETURNS: bool, indicating whether a connection was made
     --------------------------------------------------------------------
     '''
     try:
@@ -254,6 +299,19 @@ def file_names_for_range(beg_yr, beg_mth, end_yr, end_mth, web):
     end_yr  = int, end year of desired files
     end_mth = string, 3 character beginning month of desired files
     web     = bool, whether or not files are being downloaded from the web
+
+    OTHER FUNCTIONS AND FILES CALLED BY THIS FUNCTION: None
+
+    OBJECTS CREATED WITHIN FUNCTION:
+    file_list         = list, strings for each formatted filename
+    months            = list, containing abbrev. of each month
+    err_msg           = string, error message for user
+    included_months   = list, strings for desired months
+    first_year_months = list, strings for desired months from first year
+    current_yr        = 2-digit int, indicating year for filename
+    end_year_months   = list, strings for desired months from final year
+
+    FILES CREATED BY THIS FUNCTION: None
 
     RETURNS: file_list
     --------------------------------------------------------------------
@@ -298,6 +356,18 @@ def fetch_files_from_web(file_paths):
     INPUTS:
     file_paths = list, paths of desired zip files
 
+    OTHER FUNCTIONS AND FILES CALLED BY THIS FUNCTION:
+        urllib.request.urlopen()
+        tempfile.NamedTemporaryFile()
+        zipfile.Zipfile()
+        io.BytesIO()
+
+    OBJECTS CREATED WITHIN FUNCTION:
+    local_paths = list, local paths for teporary files
+    f           = temporary file of monthly CPS survey
+    path        = string, local path for temporary file
+    zipped_file = ZipFile object, opened zipfile
+
     FILES CREATED BY THIS FUNCTION: .pub file for each month of data
 
     RETURNS: local_paths = list, paths of temporary files
@@ -329,15 +399,34 @@ def create_graph(df_hrs_age, age_bins, graph_type):
     ----------------------------------------------------------------
     Creates Bokeh graph of average hours worked per week by age
     ----------------------------------------------------------------
-    df_hrs_age  = dataframe including weighted averages for age bins
+    INPUTS:
+    df_hrs_age  = dataframe, weighted averages for age bins
     age_bins    = numpy array, lower bounds for age cutoffs
     graph_type  = string, indicates which type of plot to include
-    cur_path    = string, path name of current directory
-    output_fldr = string, folder in current path to save files
-    output_dir  = string, total path of images folder
-    output_path = string, path of file name of figure to be saved
-    age_pers    = (S,) vector, ages from 1 to S
-    ----------------------------------------------------------------
+
+    OTHER FUNCTIONS AND FILES CALLED BY THIS FUNCTION:
+        matplotlib.pyplot.plot()
+        bokeh.plotting.figure()
+
+    OBJECTS CREATED WITHIN FUNCTION:
+    cur_path     = string, path name of current directory
+    output_fldr  = string, folder in current path to save files
+    output_dir   = string, total path of images folder
+    output_path  = string, path of file name of figure to be saved
+    output_file  = string, name of output file
+    min_age      = int, minimum age from df_hrs_age
+    max_age      = int, maximum age from df_hrs_age
+    age_pers     = (S,) vector, ages from 1 to S
+    age_range    = string, label for age bin
+    num_age_bins = int, number of age bins (S,)
+
+
+    FILES CREATED BY THIS FUNCTION:
+        OUTPUT/images/hrs_by_age.png
+        OUTPUT/images/hrs_by_age.html
+
+    RETURNS: None
+    --------------------------------------------------------------------
     '''
     # Create directory if images directory does not already exist
     cur_path = os.path.split(os.path.abspath(__file__))[0]
