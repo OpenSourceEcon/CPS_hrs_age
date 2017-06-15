@@ -112,7 +112,10 @@ def hrs_by_age(beg_mmyy, end_mmyy, web=False, directory=None, graph=False,
             os.unlink(path)
             assert not os.path.exists(path)
 
-    return np.array(df_hrs_age)
+    # create a one-dimensional array of length (S,)
+    hrs_age_vec = np.array(df_hrs_age)
+
+    return hrs_age_vec
 
 def recalculate_avg_hours(file_paths, age_bins):
     '''
