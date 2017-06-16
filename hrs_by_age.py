@@ -19,8 +19,9 @@ import matplotlib.pyplot as plt
 from matplotlib.ticker import MultipleLocator
 from bokeh.plotting import figure, output_file, show
 
+
 def hrs_by_age(beg_mmyy, end_mmyy, web=False, directory=None, graph=False,
-                graph_type='bokeh', age_bins = None, l_tilde = 1):
+               graph_type='bokeh', age_bins=None, l_tilde=1):
     '''
     --------------------------------------------------------------------
     Generates a vector of average hours of work by age for a given
@@ -90,13 +91,13 @@ def hrs_by_age(beg_mmyy, end_mmyy, web=False, directory=None, graph=False,
 
         file_paths = fetch_files_from_web(file_urls)
 
-    elif not web and directory==None:
+    elif not web and directory is None:
         # Thow an error if no source of files is given
         err_msg = ('hrs_by_age() ERROR: No local directory was ' +
                    'specified as the source for the data.')
         raise RuntimeError(err_msg)
 
-    elif not web and directory!=None:
+    elif not web and directory is not None:
         full_directory = os.path.expanduser(directory)
         file_list = file_names_for_range(beg_yr, beg_mth, end_yr, end_mth, web)
 
@@ -104,7 +105,8 @@ def hrs_by_age(beg_mmyy, end_mmyy, web=False, directory=None, graph=False,
             file_paths.append(os.path.join(full_directory, name))
         # Check to make sure the necessary files are present in the
         # local directory
-        err_msg = ('hrs_by_age() ERROR: The file %s was not found in the directory %s')
+        err_msg = ('hrs_by_age() ERROR: The file %s was not found in ' +
+                   'the directory %s')
         for path in file_paths:
             if not os.path.isfile(path):
                 raise RuntimeError(err_msg % (path, full_directory))
@@ -125,9 +127,10 @@ def hrs_by_age(beg_mmyy, end_mmyy, web=False, directory=None, graph=False,
         os.makedirs(output_dir)
     output_file = os.path.join(output_dir, 'hrs_by_age.pkl')
     # Create output object as vector and parameters used to create it
-    output_object = {'vector':df_hrs_age, 'beginning_month':beg_mmyy, 'ending_month':\
-    end_mmyy, 'web':web, 'directory':directory, 'graph':graph, 'age_bins':age_bins, \
-    'l_tilde':l_tilde}
+    output_object = {'vector': df_hrs_age, 'beginning_month': beg_mmyy,
+                     'ending_month': end_mmyy, 'web': web, 'directory':
+                     directory, 'graph': graph, 'age_bins': age_bins,
+                     'l_tilde': l_tilde}
     # Save output as pickle
     pickle.dump(output_object, open(output_file, 'wb'))
 
@@ -141,6 +144,7 @@ def hrs_by_age(beg_mmyy, end_mmyy, web=False, directory=None, graph=False,
     hrs_age_vec = np.array(df_hrs_age)
 
     return hrs_age_vec
+
 
 def recalculate_avg_hours(file_paths, age_bins):
     '''
@@ -176,8 +180,8 @@ def recalculate_avg_hours(file_paths, age_bins):
 
     list_months_df = []
     for filename in file_paths:
-        month_df = pd.read_fwf(filename, colspecs=colspecs, header=None, names=names,
-                         index_col=False)
+        month_df = pd.read_fwf(filename, colspecs=colspecs, header=None,
+                               names=names, index_col=False)
         list_months_df.append(month_df)
 
     # concatenate all dataframes
@@ -250,17 +254,18 @@ def recalculate_avg_hours(file_paths, age_bins):
     if age_bins is not None:
         age_bins = np.append(age_bins, 80)
         age_bins = list(age_bins)
-        df['age_bins'] = pd.cut(df['PRTAGE'], age_bins)
-        df_hrs_age = df.groupby('age_bins').apply(lambda x:
-                                            np.average(x.TotWklyHours,
-                                                       weights=x.HWHHWGT))
+        df['age_bin'] = pd.cut(df['PRTAGE'], age_bins)
+        df_hrs_age = df.groupby('age_bin').apply(lambda x:
+                                                 np.average(x.TotWklyHours,
+                                                            weights=x.HWHHWGT))
     # group according to age
     else:
         df_hrs_age = df.groupby('PRTAGE').apply(lambda x:
-                                            np.average(x.TotWklyHours,
-                                                       weights=x.HWHHWGT))
+                                                np.average(x.TotWklyHours,
+                                                           weights=x.HWHHWGT))
 
     return df_hrs_age
+
 
 def not_connected(url='http://www.google.com/', timeout=5):
     '''
@@ -287,6 +292,7 @@ def not_connected(url='http://www.google.com/', timeout=5):
         return False
     except requests.ConnectionError:
         return True
+
 
 def file_names_for_range(beg_yr, beg_mth, end_yr, end_mth, web):
     '''
@@ -318,7 +324,8 @@ def file_names_for_range(beg_yr, beg_mth, end_yr, end_mth, web):
     '''
     file_list = []
 
-    months = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec']
+    months = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep',
+              'oct', 'nov', 'dec']
 
     if beg_yr < 15 or end_yr > 17:
         err_msg = ('hrs_by_age() ERROR: Dates out of range.')
@@ -332,9 +339,10 @@ def file_names_for_range(beg_yr, beg_mth, end_yr, end_mth, web):
         file_list += [month + str(beg_yr) + 'pub' for month in included_months]
     else:
         first_year_months = months[months.index(beg_mth):]
-        file_list += [month + str(beg_yr) + 'pub' for month in first_year_months]
+        file_list += [month + str(beg_yr) +
+                      'pub' for month in first_year_months]
 
-        for i in range(1,end_yr-beg_yr):
+        for i in range(1, end_yr-beg_yr):
             current_yr = beg_yr + i
             file_list += [month + str(current_yr) + 'pub' for month in months]
 
@@ -342,11 +350,13 @@ def file_names_for_range(beg_yr, beg_mth, end_yr, end_mth, web):
         file_list += [month + str(end_yr) + 'pub' for month in end_year_months]
 
     if web:
-        file_list = ['http://nber.org/cps-basic/' + file_name + '.zip' for file_name in file_list]
+        file_list = ['http://nber.org/cps-basic/' + file_name +
+                     '.zip' for file_name in file_list]
     else:
         file_list = [file_name + '.dat' for file_name in file_list]
 
     return file_list
+
 
 def fetch_files_from_web(file_paths):
     '''
@@ -393,6 +403,7 @@ def fetch_files_from_web(file_paths):
         f.close()
 
     return local_paths
+
 
 def create_graph(df_hrs_age, age_bins, graph_type):
     '''
@@ -469,21 +480,23 @@ def create_graph(df_hrs_age, age_bins, graph_type):
         plt.close()
 
     # Graphing with Bokeh
-    if graph_type =='bokeh':
+    if graph_type == 'bokeh':
         output_path = os.path.join(output_dir, 'hrs_by_age.html')
         output_file(output_path)
         if age_bins is None:
             min_age = df_hrs_age.index.min()
             max_age = df_hrs_age.index.max()
             age_pers = np.arange(min_age, max_age + 1)
-            p = figure(plot_width=400, plot_height=400, title='Average hours by age')
+            p = figure(plot_width=400, plot_height=400,
+                       title='Average hours by age')
         else:
             age_bins = np.append(age_bins, 80)
             age_pers = []
             for i in range(len(age_bins)-1):
                 age_range = '%d - %d' % (age_bins[i], age_bins[i+1]-1)
                 age_pers.append(age_range)
-            p = figure(plot_width=400, plot_height=400, x_range=age_pers, title='Average hours by age')
+            p = figure(plot_width=400, plot_height=400, x_range=age_pers,
+                       title='Average hours by age')
 
         p.xaxis.axis_label = 'Age'
         p.yaxis.axis_label = 'Average hours'
