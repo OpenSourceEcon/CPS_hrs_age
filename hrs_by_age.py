@@ -9,6 +9,7 @@ surveys).
 import numpy as np
 import pandas as pd
 import os
+import sys
 import requests
 from io import BytesIO
 from zipfile import ZipFile
@@ -142,6 +143,9 @@ def hrs_by_age(beg_mmyy, end_mmyy, web=False, directory=None, graph=False,
 
     # create a one-dimensional array of length (S,)
     hrs_age_vec = np.array(df_hrs_age)
+
+    if web:
+        sys.stdout.write('Done.\n')
 
     return hrs_age_vec
 
@@ -362,6 +366,7 @@ def fetch_files_from_web(file_paths):
     '''
     --------------------------------------------------------------------
     Fetches files from NBER website and saves them as temporary files.
+    Prints proress bar as it downloads the files.
     --------------------------------------------------------------------
     INPUTS:
     file_paths = list, paths of desired zip files
@@ -371,9 +376,12 @@ def fetch_files_from_web(file_paths):
         tempfile.NamedTemporaryFile()
         zipfile.Zipfile()
         io.BytesIO()
+        print_progress()
 
     OBJECTS CREATED WITHIN FUNCTION:
     local_paths = list, local paths for teporary files
+    iteration   = int, the number of files that have been downloaded
+    total       = total, the total number of files to download
     f           = temporary file of monthly CPS survey
     path        = string, local path for temporary file
     zipped_file = ZipFile object, opened zipfile
@@ -384,6 +392,10 @@ def fetch_files_from_web(file_paths):
     --------------------------------------------------------------------
     '''
     local_paths = []
+
+    iteration = 0
+    total = len(file_paths)
+    print_progress(iteration, total)
 
     for file_path in file_paths:
         # url = requests.get(file_path) (if using reuests package)
@@ -402,7 +414,58 @@ def fetch_files_from_web(file_paths):
 
         f.close()
 
+        iteration += 1
+        print_progress(iteration, total)
+
     return local_paths
+
+
+def print_progress(iteration, total, prefix='Progress:', suffix='Complete',
+                   decimals=1, bar_length=50):
+    '''
+    --------------------------------------------------------------------
+    Prints a progress bar to the terminal when completing small tasks
+    of a larger job.
+    --------------------------------------------------------------------
+    INPUTS:
+    iteration  = int, which task the job is currently doing
+    total      = int, how many tasks are in the job
+    prefix     = string, what to print before the progress bar
+    suffix     = string, what to print after the progress bar
+    decimals   = int, how many decimals in the percentage
+    bar_length = int, how many boxes in the progress bar
+
+    OTHER FUNCTIONS AND FILES CALLED BY THIS FUNCTION:
+        str_format.format()
+        sys.stdout.write()
+        sys.stdout.flush()
+
+    OBJECTS CREATED WITHIN FUNCTION:
+    str_format = string, string containing percentage completed
+    percents   = string, percentage completed
+    filled_length       = int, number of boxes in the progress bar to fill
+    bar = string, progress bar
+
+    FILES CREATED BY THIS FUNCTION: None
+
+    RETURNS: None
+    --------------------------------------------------------------------
+    '''
+    str_format = "{0:." + str(decimals) + "f}"
+    percents = str_format.format(100 * (iteration / float(total)))
+    filled_length = int(round(bar_length * iteration / float(total)))
+    bar = '█' * filled_length + '-' * (bar_length - filled_length)
+
+    if iteration == 0:
+        sys.stdout.write('Accessing CPS data files...\n')
+
+    sys.stdout.write('\r%s |%s| %s%s %s' %
+                     (prefix, bar, percents, '%', suffix)),
+
+    if iteration == total:
+        sys.stdout.write('\n')
+        sys.stdout.write('Computing...\n')
+    sys.stdout.flush()
 
 
 def create_graph(df_hrs_age, age_bins, graph_type):
