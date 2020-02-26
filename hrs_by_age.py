@@ -88,7 +88,8 @@ def hrs_by_age(beg_mmyy, end_mmyy, web=False, directory=None, graph=False,
                        'selected.')
             raise RuntimeError(err_msg)
 
-        file_urls = file_names_for_range(beg_yr, beg_mth, end_yr, end_mth, web)
+        file_urls = file_names_for_range(beg_yr, beg_mth, end_yr,
+                                         end_mth, web)
 
         file_paths = fetch_files_from_web(file_urls)
 
@@ -115,7 +116,7 @@ def hrs_by_age(beg_mmyy, end_mmyy, web=False, directory=None, graph=False,
     df_hrs_age = recalculate_avg_hours(file_paths, age_bins)
 
     # normalize working hours
-    df_hrs_age = df_hrs_age/l_tilde
+    df_hrs_age = df_hrs_age / l_tilde
 
     if graph:
         create_graph(df_hrs_age, age_bins, graph_type)
@@ -200,7 +201,8 @@ def recalculate_avg_hours(file_paths, age_bins):
             (df['PEHRFTPT'] == 1)) & (df['PRTFAGE'] == 0)]
 
     # Create empty total weekly hours series that has the index from df
-    TotWklyHours = pd.Series(data=[np.nan], index=df.index)
+    TotWklyHours = pd.Series(data=np.nan * np.ones(df.shape[0]),
+                             index=df.index)
 
     # Assume that observations that report at least 35 hours of work in the
     # typical week (PEHRFTPT=1) but report either n/a hours (-1) or varying
@@ -259,14 +261,17 @@ def recalculate_avg_hours(file_paths, age_bins):
         age_bins = np.append(age_bins, 80)
         age_bins = list(age_bins)
         df['age_bin'] = pd.cut(df['PRTAGE'], age_bins)
-        df_hrs_age = df.groupby('age_bin').apply(lambda x:
-                                                 np.average(x.TotWklyHours,
-                                                            weights=x.HWHHWGT))
+        # print('df HWHHWGT=0=', df['HWHHWGT'][df['HWHHWGT'] == 0].shape)
+        df_hrs_age = \
+            df.groupby('age_bin').apply(lambda x:
+                                        np.average(x.TotWklyHours,
+                                                   weights=x.HWHHWGT))
     # group according to age
     else:
-        df_hrs_age = df.groupby('PRTAGE').apply(lambda x:
-                                                np.average(x.TotWklyHours,
-                                                           weights=x.HWHHWGT))
+        df_hrs_age = \
+            df.groupby('PRTAGE').apply(lambda x:
+                                       np.average(x.TotWklyHours,
+                                                  weights=x.HWHHWGT))
 
     return df_hrs_age
 
@@ -331,10 +336,10 @@ def file_names_for_range(beg_yr, beg_mth, end_yr, end_mth, web):
     months = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep',
               'oct', 'nov', 'dec']
 
-    if beg_yr < 15 or end_yr > 17:
+    if beg_yr < 15 or end_yr > 19:
         err_msg = ('hrs_by_age() ERROR: Dates out of range.')
         raise RuntimeError(err_msg)
-    elif end_yr == 17 and months.index(end_mth) > 2:
+    elif end_yr == 19 and months.index(end_mth) > 10:
         err_msg = ('hrs_by_age() ERROR: Dates out of range.')
         raise RuntimeError(err_msg)
 
